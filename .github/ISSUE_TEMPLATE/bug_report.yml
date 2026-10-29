@@ -1,0 +1,48 @@
+name: Bug report
+description: An icon is wrong or missing, or the pack does not load
+title: "[bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please mention your One Commander version and whether you use the MSI, portable or
+        Store build — the resource directory differs between them.
+  - type: input
+    id: versions
+    attributes:
+      label: Environment
+      description: Windows version, One Commander version, install type
+      placeholder: "Windows 11 24H2, One Commander 3.74, MSI"
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      options:
+        - file icons
+        - folder icons
+        - Thumbnail.png
+        - build / scripts
+        - documentation
+    validations:
+      required: true
+  - type: textarea
+    id: what
+    attributes:
+      label: What happens
+      description: The file type or folder name involved, and what you see instead
+      placeholder: ".md files show the generic document icon"
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What you expected
+  - type: textarea
+    id: mapping
+    attributes:
+      label: Relevant mapping rows (optional)
+      description: Lines from `mappings/file-icons.tsv` or `mappings/folder-icons.tsv`
+      render: text

@@ -1,0 +1,55 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  mappings:
+    name: Mapping drift and pack validation
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check mappings against the vendored upstream
+        run: make check
+
+      - name: Validate the committed pack
+        run: make verify
+
+  render-smoke:
+    name: Render smoke test (Inkscape)
+    runs-on: ubuntu-latest
+    needs: mappings
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Inkscape and ImageMagick
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq inkscape imagemagick
+
+      - name: Render a small sample
+        run: |
+          python3 scripts/build.py \
+            --only files --limit 24 --renderer auto \
+            --thumbnail none --no-manifest \
+            --out "$RUNNER_TEMP/pack" --mappings-dir "$RUNNER_TEMP/mappings"
+          find "$RUNNER_TEMP/pack" -name '*.png' | wc -l

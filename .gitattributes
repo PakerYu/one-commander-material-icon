@@ -1,0 +1,23 @@
+# normalise line endings inside the repository, keep platform defaults on checkout
+* text=auto eol=lf
+
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.ico binary
+*.zip binary
+*.tar.xz binary
+
+*.svg text
+*.tsv text eol=lf
+*.json text eol=lf
+*.md text eol=lf
+*.py text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+Makefile text eol=lf
+
+# the pack is generated artwork, keep it out of language statistics
+pack/** linguist-vendored
+vendor/** linguist-vendored
+mappings/*.tsv linguist-generated

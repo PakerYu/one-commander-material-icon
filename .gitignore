@@ -1,0 +1,19 @@
+# build output (pack.json, distributable zip)
+dist/
+
+# One Commander scale caches (numeric directories created inside a pack)
+pack/*/*/[0-9]*/
+
+# python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+
+# editors / OS
+.idea/
+.vscode/
+*.swp
+.DS_Store
+Thumbs.db

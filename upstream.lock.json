@@ -1,0 +1,10 @@
+{
+  "name": "material-icon-theme",
+  "repo": "material-extensions/vscode-material-icon-theme",
+  "tag": "v5.39.0",
+  "version": "5.39.0",
+  "icons": "icons/",
+  "definitions": "src/core/icons/",
+  "vendor": "vendor/material-icon-theme",
+  "note": "Pinned upstream used for vendor/ and pack/. Run `make vendor` after bumping the tag."
+}

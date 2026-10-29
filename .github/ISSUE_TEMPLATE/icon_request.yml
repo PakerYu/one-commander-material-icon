@@ -1,0 +1,37 @@
+name: Icon request
+description: Ask for a missing extension, file name or folder name mapping
+title: "[icon] "
+labels: ["icon-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        File icons are keyed by extension/file tokens, folder icons by folder name.
+        Check `mappings/file-icons.tsv` and `mappings/folder-icons.tsv` first — both are
+        generated, so the fix usually belongs in the upstream definitions or the rules in
+        `scripts/build.py`.
+  - type: input
+    id: token
+    attributes:
+      label: Extension, file name or folder name
+      placeholder: ".astro, .env.local, node_modules"
+    validations:
+      required: true
+  - type: input
+    id: suggestion
+    attributes:
+      label: Suggested Material icon
+      description: A file stem from `vendor/material-icon-theme/icons/` (optional)
+      placeholder: "astro"
+  - type: textarea
+    id: context
+    attributes:
+      label: Why does it matter?
+      description: What does the file/folder contain, and which icon does One Commander show now?
+  - type: checkboxes
+    id: checklist
+    attributes:
+      label: Checklist
+      options:
+        - label: I checked that the token is not already covered
+          required: true
