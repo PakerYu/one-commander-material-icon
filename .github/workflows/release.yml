@@ -54,7 +54,7 @@ jobs:
           echo "upstream=$(python3 -c "import json;print(json.load(open('upstream.lock.json'))['version'])")" >> "$GITHUB_OUTPUT"
 
       - name: Publish release
-        uses: softprops/action-gh-release@v2
+        uses: softprops/action-gh-release@v3
         with:
           name: MaterialIconTheme ${{ steps.meta.outputs.version }} (upstream ${{ steps.meta.outputs.upstream }})
           generate_release_notes: true
