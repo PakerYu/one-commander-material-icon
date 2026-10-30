@@ -30,6 +30,78 @@ jobs:
       - name: Validate the committed pack
         run: make verify
 
+  notices:
+    name: License notices and packaging
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Check the license notices
+        run: make notices
+
+      - name: Zip the committed pack
+        run: make package
+
+      - name: Assert the archive is self-describing
+        run: |
+          set -euo pipefail
+          zip_file=$(ls dist/*.zip)
+          unzip -Z1 "$zip_file" > "$RUNNER_TEMP/entries.txt"
+          for required in LICENSE ATTRIBUTION.md LICENSES/material-icon-theme-MIT.txt pack.json; do
+            if ! grep -qxF "$required" "$RUNNER_TEMP/entries.txt"; then
+              echo "$zip_file does not ship $required" >&2
+              exit 1
+            fi
+          done
+          grep -qE '^FileIcons/MaterialIconTheme/.+\.png$' "$RUNNER_TEMP/entries.txt"
+          grep -qE '^FolderIcons/MaterialIconTheme/.+\.png$' "$RUNNER_TEMP/entries.txt"
+          echo "archive contents look right"
+
+      - name: Check the checksums
+        run: cd dist && sha256sum -c SHA256SUMS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: MaterialIconTheme-dist
+          path: |
+            dist/*.zip
+            dist/SHA256SUMS
+            dist/pack.json
+          retention-days: 14
+
+  scripts:
+    name: Script syntax
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Byte-compile the Python scripts
+        run: python3 -m compileall -q scripts
+
+      - name: Parse the shell scripts
+        run: |
+          set -euo pipefail
+          for f in scripts/*.sh; do
+            bash -n "$f"
+            echo "ok $f"
+          done
+
+      - name: ShellCheck
+        run: |
+          if command -v shellcheck >/dev/null 2>&1; then
+            shellcheck -S warning scripts/check-notices.sh scripts/package.sh scripts/fetch-upstream.sh scripts/publish.sh
+          else
+            echo "shellcheck is not installed, skipped"
+          fi
+
   render-smoke:
     name: Render smoke test (Inkscape)
     runs-on: ubuntu-latest

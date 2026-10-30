@@ -63,7 +63,8 @@ cd one-commander-material-icon-pack
 make check     # 校验 mappings/ 与 pack/、vendor 上游是否一致（秒级）
 make build     # 重新渲染 1328 个 PNG 到 pack/（需要 Inkscape）
 make verify    # 尺寸、文件名、预览图、映射与文件一致性
-make dist      # 生成 dist/MaterialIconTheme-<version>.zip
+make notices   # 校验许可声明；dist/ 里已有 zip 时连包内声明一起查
+make dist      # 构建 + 校验 + dist/MaterialIconTheme-<version>.zip 与 SHA256SUMS
 ```
 
 `vendor/material-icon-theme/` 里固定了上游的 SVG、两个 TypeScript 定义文件与
@@ -91,15 +92,16 @@ python3 scripts/build.py --renderer copy --size 512
 ## 目录结构
 
 ```
-├── docs/                        # 映射与 One Commander 说明、README 预览图
+├── docs/                        # 映射、One Commander、许可说明与 README 预览图
 ├── mappings/                    # 生成并提交的映射表（TSV）
 ├── pack/                        # 生成并提交的图标包（可直接复制）
 │   ├── FileIcons/MaterialIconTheme/
 │   └── FolderIcons/MaterialIconTheme/
-├── scripts/                     # build.py、verify.py、package.sh、install/uninstall.ps1 …
+├── LICENSES/                    # 随每个副本一起分发的第三方许可全文
+├── scripts/                     # build.py、verify.py、package.sh、check-notices.sh、install/uninstall.ps1 …
 ├── vendor/material-icon-theme/  # 固定的上游子集（SVG + TS 定义）
-├── .github/workflows/           # CI（check+verify）与 Release（打 tag 出 zip）
-├── dist/                        # 构建清单与 zip（不入库）
+├── .github/workflows/           # CI（check/verify/notices/package）、Release（打 tag 出 zip）、上游监控
+├── dist/                        # 构建清单、zip 与 SHA256SUMS（不入库）
 └── Makefile
 ```
 
@@ -122,8 +124,20 @@ make dist
 
 ## 许可
 
-MIT，见 [LICENSE](LICENSE)。图标衍生自 Material Extensions 的 Material Icon Theme，
-详见 [ATTRIBUTION.md](ATTRIBUTION.md)。
+**MIT。** 生成脚本、映射表与文档是本项目的成果；图标是 Material Extensions 的 Material
+Icon Theme（MIT）的衍生作品，沿用同一套条款。
+
+- [`LICENSE`](LICENSE) — MIT，`Copyright (c) 2026 PakerYu` 与 `Copyright (c) 2025 Material Extensions`
+- [`ATTRIBUTION.md`](ATTRIBUTION.md) — 各部分来源、范围与商标说明
+- [`LICENSES/`](LICENSES/README.md) — 第三方许可全文，随每个发布包一起分发
+- [`docs/licensing.md`](docs/licensing.md) — 为什么选 MIT，以及被排除的选项
+
+MIT 要求版权声明随每个副本一起分发，所以发布 zip 里和图标放在一起的是 `LICENSE`、
+`ATTRIBUTION.md` 和 `LICENSES/material-icon-theme-MIT.txt`。这份声明一旦漂移，`make notices`
+（CI 也会跑）就会失败。
+
+图标里的第三方产品名称与标志归各自所有者，仅用于标识文件类型；One Commander 与 Material
+Design 都是描述性提及，本项目与它们没有隶属或背书关系。
 
 ---
 

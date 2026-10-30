@@ -68,7 +68,8 @@ cd one-commander-material-icon-pack
 make check     # validate mappings/ against pack/ and the vendored upstream (seconds)
 make build     # re-render all 1328 PNGs into pack/ (needs Inkscape)
 make verify    # sizes, file names, thumbnails, mapping ↔ file consistency
-make dist      # build + dist/MaterialIconTheme-<version>.zip
+make notices   # license notices, and the notices inside dist/*.zip when it exists
+make dist      # build + verify + dist/MaterialIconTheme-<version>.zip + SHA256SUMS
 ```
 
 `make help` lists every target. The vendored upstream checkout in
@@ -106,15 +107,16 @@ Both tables are generated deterministically; `mappings/file-icons.tsv` and
 ## Repository layout
 
 ```
-├── docs/                     # mapping + One Commander notes, README preview
+├── docs/                     # mapping + One Commander + licensing notes, README preview
 ├── mappings/                 # generated, committed mapping tables (TSV)
 ├── pack/                     # generated icon packs (committed, copy-ready)
 │   ├── FileIcons/MaterialIconTheme/
 │   └── FolderIcons/MaterialIconTheme/
-├── scripts/                  # build.py, verify.py, package.sh, install/uninstall.ps1, …
+├── LICENSES/                 # third-party license texts shipped with every copy
+├── scripts/                  # build.py, verify.py, package.sh, check-notices.sh, install/uninstall.ps1, …
 ├── vendor/material-icon-theme/  # pinned upstream subset (SVGs + TS definitions)
-├── .github/workflows/        # CI (check + verify) and release (tag -> zip)
-├── dist/                     # build manifest and zip (not committed)
+├── .github/workflows/        # CI (check, verify, notices, package) · Release (tag → zip) · Upstream watch
+├── dist/                     # build manifest, zip and SHA256SUMS (not committed)
 └── Makefile
 ```
 
@@ -137,8 +139,22 @@ Icons that only exist as generated clones in the upstream build (`nest-*`, `angu
 
 ## License
 
-MIT, see [LICENSE](LICENSE). The artwork is derived from the Material Icon Theme by Material
-Extensions; see [ATTRIBUTION.md](ATTRIBUTION.md).
+**MIT.** The tooling, mapping tables and documentation are this project's work; the artwork
+is a derivative of the MIT-licensed Material Icon Theme by Material Extensions and stays
+under the same terms.
+
+- [`LICENSE`](LICENSE) — MIT, `Copyright (c) 2026 PakerYu` and `Copyright (c) 2025 Material Extensions`
+- [`ATTRIBUTION.md`](ATTRIBUTION.md) — origin and scope of every work, plus the trademark notes
+- [`LICENSES/`](LICENSES/README.md) — verbatim third-party license texts, shipped inside every release zip
+- [`docs/licensing.md`](docs/licensing.md) — why MIT, and which alternatives were ruled out
+
+The release archive carries `LICENSE`, `ATTRIBUTION.md` and `LICENSES/material-icon-theme-MIT.txt`
+next to the icons, because MIT requires the notice to travel with every copy.
+`make notices` (also run by CI) fails if any of that drifts.
+
+Third-party product names and logos are trademarks of their respective owners and are used
+only to identify file types. One Commander and Material Design are named descriptively; this
+project is not affiliated with or endorsed by either.
 
 ---
 

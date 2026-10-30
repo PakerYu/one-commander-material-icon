@@ -9,6 +9,10 @@ on:
 permissions:
   contents: write
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Build the pack and publish the zip
@@ -25,6 +29,9 @@ jobs:
           sudo apt-get update -qq
           sudo apt-get install -y -qq inkscape imagemagick zip
 
+      - name: Check the license notices
+        run: make notices
+
       - name: Build
         run: make build
 
@@ -33,6 +40,12 @@ jobs:
 
       - name: Package
         run: make dist
+
+      - name: Verify the release assets
+        run: |
+          set -euo pipefail
+          ./scripts/check-notices.sh --zip dist/*.zip
+          cd dist && sha256sum -c SHA256SUMS
 
       - name: Read version
         id: meta
@@ -47,5 +60,9 @@ jobs:
           generate_release_notes: true
           files: |
             dist/MaterialIconTheme-*.zip
+            dist/SHA256SUMS
             dist/pack.json
+            LICENSE
+            ATTRIBUTION.md
+            LICENSES/material-icon-theme-MIT.txt
           fail_on_unmatched_files: true

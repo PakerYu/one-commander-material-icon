@@ -8,8 +8,9 @@ UPSTREAM_VERSION := $(shell $(PY) -c "import json;print(json.load(open('upstream
 PACK := pack
 SIZE := 512
 ZIP := dist/MaterialIconTheme-$(VERSION).zip
+UPSTREAM_LICENSE := LICENSES/material-icon-theme-MIT.txt
 
-.PHONY: help build check verify dist vendor preview clean
+.PHONY: help build check verify notices licenses package dist vendor preview clean
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) \
@@ -17,6 +18,7 @@ help: ## Show this help
 	@echo
 	@echo "  upstream: $(TAG) (pinned in upstream.lock.json)"
 	@echo "  version:  $(VERSION)"
+	@echo "  license:  MIT (see LICENSE, ATTRIBUTION.md, LICENSES/)"
 
 build: ## Render the pack into pack/ (needs Inkscape, or --renderer copy)
 	$(PY) scripts/build.py --size $(SIZE)
@@ -27,7 +29,19 @@ check: ## Validate mappings/ against pack/ and the vendored upstream (fast, no r
 verify: ## Validate the built pack (sizes, names, thumbnails, mappings)
 	$(PY) scripts/verify.py --size $(SIZE)
 
-dist: build verify ## Build and zip the distributable into dist/
+notices: ## Check license notices, and the notices inside $(ZIP) when it exists
+	./scripts/check-notices.sh $(if $(wildcard $(ZIP)),--zip $(ZIP),)
+
+licenses: ## Refresh $(UPSTREAM_LICENSE) from the vendored upstream license
+	cp vendor/material-icon-theme/LICENSE $(UPSTREAM_LICENSE)
+	@cmp -s vendor/material-icon-theme/LICENSE $(UPSTREAM_LICENSE) && echo "refreshed $(UPSTREAM_LICENSE)"
+
+# package.sh runs check-notices.sh itself (repository files first, then the finished
+# archive), so the zip-aware `notices` target is deliberately not a prerequisite here.
+package: verify ## Zip the committed pack/ without re-rendering (CI-friendly)
+	./scripts/package.sh
+
+dist: build verify ## Render, validate, and zip the distributable into dist/
 	./scripts/package.sh
 
 vendor: ## Refresh vendor/material-icon-theme from the pinned tag

@@ -15,6 +15,8 @@ newer upstream**.
 make check     # mapping drift: mappings/ vs pack/ vs vendor/
 make build     # full re-render into pack/
 make verify    # artifact validation
+make notices   # license notices (+ the archive contents when dist/ exists)
+make package   # zip the committed pack/ without re-rendering
 ```
 
 ## Mapping changes
@@ -35,9 +37,10 @@ If you only want to change *what* an icon is called for a given Material icon, l
 
 1. Bump `tag` and `version` in `upstream.lock.json`.
 2. `make vendor` — refresh `vendor/material-icon-theme/`.
-3. `make check` — review the mapping diff (`git diff mappings/`).
-4. `make build verify dist`.
-5. Update `CHANGELOG.md` and commit the regenerated `pack/` together with the mappings.
+3. `make licenses` — refresh `LICENSES/` from the new vendored license text.
+4. `make check` — review the mapping diff (`git diff mappings/`).
+5. `make build verify notices dist`.
+6. Update `CHANGELOG.md` and commit the regenerated `pack/` together with the mappings.
 
 Rendering is not byte-stable across Inkscape versions: expect binary diffs in `pack/` when
 the renderer changes. `make check` only compares names, sizes and mapping rows.
@@ -45,9 +48,38 @@ the renderer changes. `make check` only compares names, sizes and mapping rows.
 ## Pull requests
 
 - Keep the diff focused; do not reformat unrelated code or re-render icons that did not change.
-- `make check verify` must pass; CI runs the same commands.
+- `make check verify notices` must pass; CI runs the same commands.
 - Conventional Commits (`feat:`, `fix:`, `chore:`, `docs:` …).
 - Mention the upstream version you built against.
+
+## Licensing of contributions
+
+- Contributions to this repository are accepted under **MIT**, the license in
+  [`LICENSE`](LICENSE). By opening a pull request you agree that your contribution may be
+  distributed under those terms. Do not paste in code or artwork from a project whose license
+  is incompatible with MIT.
+- New artwork is not accepted into `pack/`: the pack is rendered from the vendored upstream.
+  Icon requests belong upstream — see the issue template.
+- If a change touches what ships in a release, run `make package` and confirm
+  `scripts/check-notices.sh` still passes: `LICENSE`, `ATTRIBUTION.md` and
+  `LICENSES/material-icon-theme-MIT.txt` must stay present and consistent
+  (see [`docs/licensing.md`](docs/licensing.md)).
+- `LICENSES/*.txt` are verbatim upstream texts. Never reformat them; refresh with
+  `make licenses` after bumping `upstream.lock.json`.
+
+## Releasing the pack
+
+1. Bump `VERSION` and add a `CHANGELOG.md` entry.
+2. `make dist` — renders, validates, zips `dist/MaterialIconTheme-<version>.zip` and writes
+   `dist/SHA256SUMS`; the archive is only accepted if `scripts/check-notices.sh --zip …`
+   finds the license notices inside it.
+3. Tag `v<version>` and push the tag. `.github/workflows/release.yml` rebuilds, re-checks the
+   archive, and attaches the zip, `SHA256SUMS`, `pack.json`, `LICENSE`, `ATTRIBUTION.md` and
+   `LICENSES/material-icon-theme-MIT.txt` to the release.
+4. `.github/workflows/upstream-watch.yml` opens a weekly issue when a newer upstream release
+   exists, so the pin does not silently rot.
+
+`scripts/publish.sh` is only for bootstrapping a fresh remote; it does not publish a release.
 
 ## Code comments
 

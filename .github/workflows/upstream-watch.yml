@@ -1,0 +1,71 @@
+name: Upstream watch
+
+on:
+  schedule:
+    # every Monday 06:00 UTC
+    - cron: "0 6 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  watch:
+    name: Compare the pinned upstream with the latest release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Read the pinned and the latest upstream version
+        id: upstream
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          pinned=$(python3 -c "import json;print(json.load(open('upstream.lock.json'))['version'])")
+          latest=$(gh api repos/material-extensions/vscode-material-icon-theme/releases/latest \
+            --jq '.tag_name' | sed 's/^v//')
+          echo "pinned $pinned, latest $latest"
+          echo "pinned=$pinned" >> "$GITHUB_OUTPUT"
+          echo "latest=$latest" >> "$GITHUB_OUTPUT"
+          if [ "$pinned" = "$latest" ]; then
+            echo "stale=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "stale=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Open a tracking issue when upstream moved
+        if: steps.upstream.outputs.stale == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PINNED: ${{ steps.upstream.outputs.pinned }}
+          LATEST: ${{ steps.upstream.outputs.latest }}
+        run: |
+          set -euo pipefail
+          open_issues=$(gh issue list --state open --search "$LATEST in:title" --json number --jq 'length')
+          if [ "${open_issues:-0}" -gt 0 ]; then
+            echo "an open issue already tracks upstream $LATEST"
+            exit 0
+          fi
+          gh issue create \
+            --title "Upstream material-icon-theme $LATEST is available (pinned: $PINNED)" \
+            --body "$(cat <<EOF
+          The pinned upstream in \`upstream.lock.json\` is **$PINNED**, the latest
+          [material-extensions/vscode-material-icon-theme](https://github.com/material-extensions/vscode-material-icon-theme/releases/latest)
+          release is **$LATEST**.
+
+          Refresh checklist (see CONTRIBUTING.md):
+
+          - [ ] bump \`tag\` and \`version\` in \`upstream.lock.json\`
+          - [ ] \`make vendor && make licenses\`
+          - [ ] \`make check\` and review the \`mappings/\` diff
+          - [ ] \`make build verify notices dist\`
+          - [ ] update \`CHANGELOG.md\` and commit the regenerated \`pack/\`
+          - [ ] tag the release so \`.github/workflows/release.yml\` publishes it
+          EOF
+          )"

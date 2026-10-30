@@ -438,6 +438,29 @@ def read_material_version(root: Optional[Path]) -> Optional[str]:
         return None
 
 
+def read_upstream_lock() -> Dict[str, str]:
+    """``upstream.lock.json`` 里的上游标识（构建清单用）。"""
+    lock = REPO / "upstream.lock.json"
+    try:
+        data = json.loads(lock.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    return {key: str(data[key]) for key in ("name", "repo", "tag", "version") if data.get(key)}
+
+
+def read_project_author() -> Optional[str]:
+    """``LICENSE`` 里第一条非上游版权行的作者，作为构建清单的 author。"""
+    try:
+        lines = (REPO / "LICENSE").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return None
+    for line in lines:
+        match = re.match(r"Copyright \(c\) \d{4} (.+)$", line.strip())
+        if match and "Material Extensions" not in match.group(1):
+            return match.group(1).strip()
+    return None
+
+
 # --------------------------------------------------------------------------- #
 # 映射生成
 # --------------------------------------------------------------------------- #
@@ -1355,12 +1378,26 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     # ---- 8. pack.json ---------------------------------------------------- #
     if not args.no_manifest:
+        upstream = read_upstream_lock()
         manifest = {
             "pack": args.pack_name,
             "source": "material-icon-theme",
             "sourceVersion": material_version,
+            "upstream": {
+                "name": upstream.get("name", "material-icon-theme"),
+                "repo": upstream.get("repo", "material-extensions/vscode-material-icon-theme"),
+                "tag": upstream.get("tag"),
+                "version": upstream.get("version", material_version),
+                "license": "MIT",
+            },
             "generatedAt": time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-            "generator": "build-pack.py",
+            "generator": "scripts/build.py",
+            "license": {
+                "spdx": "MIT",
+                "file": "LICENSE",
+                "notices": ["ATTRIBUTION.md", "LICENSES/material-icon-theme-MIT.txt"],
+            },
+            "author": read_project_author(),
             "renderer": renderer.name,
             "size": [args.size[0], args.size[1]],
             "counts": {
