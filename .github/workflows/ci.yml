@@ -59,6 +59,7 @@ jobs:
           done
           grep -qE '^FileIcons/MaterialIconTheme/.+\.png$' "$RUNNER_TEMP/entries.txt"
           grep -qE '^FolderIcons/MaterialIconTheme/.+\.png$' "$RUNNER_TEMP/entries.txt"
+          grep -qxF 'MainFolderIcon/MaterialIconTheme.png' "$RUNNER_TEMP/entries.txt"
           echo "archive contents look right"
 
       - name: Check the checksums

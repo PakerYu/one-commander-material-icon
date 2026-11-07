@@ -11,6 +11,10 @@ The upstream icon set is tracked separately: the version in parentheses is the p
 
 ### Added
 
+- `MainFolderIcon/MaterialIconTheme.png`: a 64×64 default folder icon rendered from the
+  upstream `icons/folder.svg`, for One Commander's **Settings → Theme → Default folder
+  icon**. `build.py` gains `--main-folder-size` / `--only main`, `verify.py` validates the
+  asset, and `make package` ships it under `MainFolderIcon/`.
 - Explicit licensing layer: `LICENSE` now carries the project's own copyright line next to
   the upstream one, `LICENSES/material-icon-theme-MIT.txt` holds the verbatim upstream MIT
   text, and `ATTRIBUTION.md` documents scope and trademarks per work. `docs/licensing.md`

@@ -3,7 +3,8 @@
 
 Checks
 ------
-1. ``pack/<Kind>/<PackName>/`` exists and is not empty for both kinds.
+1. ``pack/<Kind>/<PackName>/`` exists and is not empty for both kinds, and
+   ``pack/MainFolderIcon/<PackName>.png`` exists as the default folder icon.
 2. Every PNG decodes (header + IHDR), is square and matches the expected size
    (``pack.json`` when present, otherwise ``--size``).
 3. File names stay within One Commander's length limit and avoid Windows
@@ -20,12 +21,15 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import struct
 import sys
 from pathlib import Path
 
 REPO = Path(__file__).resolve().parent.parent
 KINDS = (("FileIcons", "file-icons.tsv", 1), ("FolderIcons", "folder-icons.tsv", 2))
+MAIN_FOLDER_DIR = "MainFolderIcon"
+MAIN_FOLDER_SIZE = (64, 64)
 WINDOWS_RESERVED = {"con", "prn", "aux", "nul"} | {f"com{i}" for i in range(1, 10)} | {
     f"lpt{i}" for i in range(1, 10)
 }
@@ -51,13 +55,39 @@ def read_tsv(path: Path) -> list[list[str]]:
     return rows[1:] if rows and rows[0][0] == "material_icon" else rows
 
 
+def parse_size(text: str) -> tuple[int, int]:
+    match = re.fullmatch(r"\s*(\d+)(?:\s*[xX*]\s*(\d+))?\s*", text)
+    if not match:
+        raise argparse.ArgumentTypeError(f"cannot parse size {text!r} (example: 64 or 64x64)")
+    width = int(match.group(1))
+    height = int(match.group(2) or width)
+    if width <= 0 or height <= 0:
+        raise argparse.ArgumentTypeError("size must be greater than 0")
+    return width, height
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Validate the One Commander icon pack.")
-    parser.add_argument("--pack", default=str(REPO / "pack"), help="pack root (contains FileIcons/ and FolderIcons/)")
+    parser.add_argument(
+        "--pack",
+        default=str(REPO / "pack"),
+        help="pack root (contains FileIcons/, FolderIcons/ and MainFolderIcon/)",
+    )
     parser.add_argument("--name", default="MaterialIconTheme", help="pack directory name")
     parser.add_argument("--mappings", default=str(REPO / "mappings"), help="mapping table directory")
     parser.add_argument("--manifest", default=str(REPO / "dist" / "pack.json"), help="build manifest (optional)")
     parser.add_argument("--size", default=None, help="expected pixel size when no manifest is present")
+    parser.add_argument(
+        "--main-name",
+        default=None,
+        help="MainFolderIcon PNG stem (default: --name)",
+    )
+    parser.add_argument(
+        "--main-size",
+        type=parse_size,
+        default=None,
+        help="expected MainFolderIcon size when no manifest is present (default: 64x64)",
+    )
     parser.add_argument("--max-name-len", type=int, default=100)
     args = parser.parse_args(argv)
 
@@ -79,6 +109,14 @@ def main(argv: list[str] | None = None) -> int:
         raw = args.size or "512"
         side = int(raw.split("x")[0])
         expected = (side, side)
+
+    main_name = args.main_name or args.name
+    main_expected = args.main_size or MAIN_FOLDER_SIZE
+    main_meta = manifest.get("mainFolderIcon")
+    if isinstance(main_meta, dict):
+        main_size = main_meta.get("size")
+        if isinstance(main_size, list) and len(main_size) == 2:
+            main_expected = (int(main_size[0]), int(main_size[1]))
 
     errors: list[str] = []
     warnings: list[str] = []
@@ -144,9 +182,54 @@ def main(argv: list[str] | None = None) -> int:
             if len(rows) != counts[kind]:
                 errors.append(f"{kind}: {len(rows)} mapping rows for {counts[kind]} PNGs")
 
+    # MainFolderIcon is not a pack folder: One Commander reads the PNGs directly from
+    # Resources\MainFolderIcon\, so the file lives at pack/MainFolderIcon/<name>.png.
+    main_dir = pack / MAIN_FOLDER_DIR
+    main_png = main_dir / f"{main_name}.png"
+    counts[MAIN_FOLDER_DIR] = 0
+    if not main_dir.is_dir():
+        errors.append(f"{MAIN_FOLDER_DIR}: directory missing ({MAIN_FOLDER_DIR})")
+    else:
+        main_pngs = sorted(p for p in main_dir.iterdir() if p.suffix.lower() == ".png")
+        counts[MAIN_FOLDER_DIR] = len(main_pngs)
+        if not main_png.is_file():
+            errors.append(f"{MAIN_FOLDER_DIR}: {main_png.name} missing")
+        else:
+            dims = png_size(main_png)
+            if dims is None:
+                errors.append(f"{MAIN_FOLDER_DIR}: not a PNG: {main_png.name}")
+            elif dims[0] != dims[1]:
+                errors.append(f"{MAIN_FOLDER_DIR}: not square {dims}: {main_png.name}")
+            elif dims != main_expected:
+                errors.append(
+                    f"{MAIN_FOLDER_DIR}: {dims} but expected {main_expected}: {main_png.name}"
+                )
+        extra = [p.name for p in main_pngs if p.name != main_png.name]
+        if extra:
+            warnings.append(
+                f"{MAIN_FOLDER_DIR}: unexpected PNGs next to {main_png.name}: "
+                f"{', '.join(extra[:5])}"
+            )
+        stray = [d.name for d in main_dir.iterdir() if d.is_dir() and d.name.isdigit()]
+        if stray:
+            warnings.append(
+                f"{MAIN_FOLDER_DIR}: numbered scale-cache directories left behind: "
+                f"{', '.join(stray[:5])}"
+            )
+        expected_count = manifest.get("counts", {}).get("mainFolderPngs")
+        if expected_count is not None and expected_count != counts[MAIN_FOLDER_DIR]:
+            errors.append(
+                f"{MAIN_FOLDER_DIR}: {counts[MAIN_FOLDER_DIR]} PNGs on disk "
+                f"but manifest says {expected_count}"
+            )
+
     print(f"pack: {pack}")
     for kind, _tsv, _idx in KINDS:
         print(f"  {kind}: {counts.get(kind, 0)} icons, expected {expected[0]}x{expected[1]}")
+    print(
+        f"  {MAIN_FOLDER_DIR}: {counts.get(MAIN_FOLDER_DIR, 0)} icon, "
+        f"expected {main_expected[0]}x{main_expected[1]} ({main_name}.png)"
+    )
     if manifest:
         print(f"  manifest: {manifest_path} (upstream {manifest.get('sourceVersion', '?')})")
     else:

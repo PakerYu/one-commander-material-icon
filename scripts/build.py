@@ -10,7 +10,8 @@ Pipeline
    extension list they cover (``py,pyw.png``), folder icons after the real
    folder name they match (``src.png``).
 3. Rasterise the SVGs to PNG with the selected renderer (inkscape /
-   rsvg-convert / cairosvg / imagemagick / copy).
+   rsvg-convert / cairosvg / imagemagick / copy). The upstream default
+   ``folder.svg`` becomes the separate ``MainFolderIcon`` asset.
 4. Write ``file-icons.tsv`` / ``folder-icons.tsv`` (mapping tables),
    ``pack.json`` (build manifest) and optionally rebuild the ``Thumbnail.png``
    previews.
@@ -39,6 +40,7 @@ Output layout (``--out`` defaults to ``<repo>/pack``):
 
     <out>/FileIcons/<pack-name>/*.png
     <out>/FolderIcons/<pack-name>/*.png
+    <out>/MainFolderIcon/<pack-name>.png
 
 and, outside the pack directory:
 
@@ -84,6 +86,13 @@ WINDOWS_RESERVED = frozenset(
 )
 
 FOLDER_PREFIX = "folder-"
+
+#: One Commander 的「默认文件夹图标」是 Resources\MainFolderIcon\ 下的独立 PNG，
+#: 不属于 FolderIcons 包。上游的 defaultIcon 是 folder.svg，不在 git tag 里，
+#: 由 npm 构建生成，因此 vendor 中的这份是手工补入的。
+MAIN_FOLDER_DIR = "MainFolderIcon"
+MAIN_FOLDER_ICON = "folder"
+MAIN_FOLDER_SIZE = (64, 64)
 
 FILE_TSV_NAME = "file-icons.tsv"
 FOLDER_TSV_NAME = "folder-icons.tsv"
@@ -617,6 +626,11 @@ def resolve_asset(name: str, kind: str, icons_dir: Optional[Path], prefer_svg: b
     return None
 
 
+def main_folder_target(out_dir: Path, pack_name: str) -> Path:
+    """``<out>/MainFolderIcon/<pack-name>.png`` — One Commander 的默认文件夹图标。"""
+    return out_dir / MAIN_FOLDER_DIR / f"{pack_name}.png"
+
+
 def png_size(path: Path) -> Optional[Tuple[int, int]]:
     try:
         with path.open("rb") as handle:
@@ -908,6 +922,24 @@ def pick_renderer(requested: str) -> Tuple[Renderer, List[str]]:
     raise SystemExit("no usable renderer found")
 
 
+def pick_svg_renderer() -> Renderer:
+    """给 MainFolderIcon 选一个能画 SVG 的渲染器。
+
+    ``--renderer copy`` 只能复制上游 PNG，而默认文件夹图标只有 ``folder.svg``，
+    此时回退到任意可用的 SVG 渲染器。
+    """
+    for name in AUTO_RENDER_ORDER:
+        if name == "copy":
+            continue
+        renderer = RENDERERS[name]
+        if renderer.available():
+            return renderer
+    raise RuntimeError(
+        "MainFolderIcon needs an SVG renderer "
+        "(install Inkscape, rsvg-convert, cairosvg or ImageMagick)"
+    )
+
+
 # --------------------------------------------------------------------------- #
 # TSV / 构建信息
 # --------------------------------------------------------------------------- #
@@ -1179,6 +1211,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         help="output size, e.g. 256 or 256x256 (default: 512x512)",
     )
     parser.add_argument(
+        "--main-folder-size",
+        type=parse_size,
+        default=MAIN_FOLDER_SIZE,
+        help="MainFolderIcon size (default: 64x64)",
+    )
+    parser.add_argument(
         "--out",
         type=Path,
         default=REPO / "pack",
@@ -1212,7 +1250,12 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
         default=RENDER_TIMEOUT,
         help=f"per-command timeout in seconds (default {RENDER_TIMEOUT:.0f})",
     )
-    parser.add_argument("--only", choices=("all", "files", "folders"), default="all", help="render file icons, folder icons, or both")
+    parser.add_argument(
+        "--only",
+        choices=("all", "files", "folders", "main"),
+        default="all",
+        help="render file icons, folder icons, the MainFolderIcon, or everything",
+    )
     parser.add_argument("--force", action="store_true", help="re-render even when a correct PNG exists")
     parser.add_argument(
         "--retries",
@@ -1238,6 +1281,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     parser.add_argument("--quiet", action="store_true", help="suppress progress output")
     parser.add_argument("--limit", type=int, default=0, help="render at most N icons (debug/smoke runs)")
     args = parser.parse_args(argv)
+
+    if args.main_folder_size[0] != args.main_folder_size[1]:
+        parser.error("--main-folder-size must be square, e.g. 64 or 64x64")
 
     RENDER_TIMEOUT = args.timeout
 
@@ -1280,6 +1326,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     file_rows, file_skips = build_file_mapping(file_specs, args.max_name_len)
     folder_rows, folder_skips = build_folder_mapping(folder_specs)
 
+    main_requested = args.only in ("all", "main")
+    main_size = args.main_folder_size
+    main_target = main_folder_target(out_dir, args.pack_name)
+    main_asset = (
+        resolve_asset(MAIN_FOLDER_ICON, "folder", icons_dir, prefer_svg=True)
+        if main_requested
+        else None
+    )
+
     if not args.quiet:
         print(f"material-icon-theme: {material_version or 'unknown version'}")
         print(f"source: {meta['source']} ({meta['definitions']})")
@@ -1288,6 +1343,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             f"covering {len({t for row in file_rows for t in row[2].split(',')})} tokens"
         )
         print(f"folder icons: {summarize(folder_rows, 0)} icons -> {len(folder_rows)} PNGs")
+        if main_requested:
+            print(f"main folder icon: {main_target.name} ({main_size[0]}x{main_size[1]})")
 
     # ---- 3. 校验模式 ----------------------------------------------------- #
     if args.check:
@@ -1299,6 +1356,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             folder_rows if args.only in ("all", "folders") else [],
             args.size,
             args.quiet,
+            main_target=main_target if main_requested else None,
+            main_source=main_asset.path if main_asset else None,
+            main_size=main_size,
         )
 
     # ---- 4. 渲染 --------------------------------------------------------- #
@@ -1340,6 +1400,47 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             print(f"  {kind}: rendered {rendered}, cached {skipped}, failed {len(failures)}")
         all_failures.extend((kind, task.icon, message) for task, message in failures)
 
+    # ---- 4b. One Commander 的默认文件夹图标 ------------------------------ #
+    if main_requested:
+        if main_asset is None:
+            all_failures.append(
+                ("main", MAIN_FOLDER_ICON, f"asset not found under {icons_dir}")
+            )
+            if not args.quiet:
+                print(
+                    f"  main: failed (no {MAIN_FOLDER_ICON}.svg in {icons_dir})",
+                    file=sys.stderr,
+                )
+        else:
+            main_target.parent.mkdir(parents=True, exist_ok=True)
+            if (
+                not args.force
+                and main_target.is_file()
+                and png_size(main_target) == main_size
+            ):
+                if not args.quiet:
+                    print(f"  main: cached {main_target.relative_to(out_dir)}")
+            else:
+                try:
+                    main_renderer = (
+                        renderer
+                        if renderer.name != "copy" or not main_asset.is_svg
+                        else pick_svg_renderer()
+                    )
+                    main_renderer.render(main_asset, main_target, main_size)
+                    rendered_size = png_size(main_target)
+                    if rendered_size != main_size:
+                        raise RuntimeError(
+                            f"rendered {rendered_size}, "
+                            f"expected {main_size[0]}x{main_size[1]}"
+                        )
+                    if not args.quiet:
+                        print(f"  main: rendered {main_target.relative_to(out_dir)}")
+                except Exception as error:  # noqa: BLE001
+                    all_failures.append(("main", MAIN_FOLDER_ICON, str(error)))
+                    if not args.quiet:
+                        print(f"  main: failed ({error})", file=sys.stderr)
+
     # ---- 5. 映射表 / 构建信息 ------------------------------------------- #
     mappings_dir: Path = args.mappings_dir.resolve()
     mappings_dir.mkdir(parents=True, exist_ok=True)
@@ -1348,6 +1449,8 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
 
     # ---- 6. 预览图 ------------------------------------------------------- #
     for kind, kind_dir in (("file", file_dir), ("folder", folder_dir)):
+        if args.only not in ("all", kind + "s"):
+            continue
         if not kind_dir.is_dir():
             continue
         target = kind_dir / "Thumbnail.png"
@@ -1373,8 +1476,15 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     if args.prune:
         removed_files = prune(file_dir, {row[1] for row in file_rows}, ("Thumbnail.png",))
         removed_folders = prune(folder_dir, {row[2] for row in folder_rows}, ("Thumbnail.png",))
+        removed_main = (
+            prune(main_target.parent, {main_target.name}) if main_requested else []
+        )
         if not args.quiet:
-            print(f"  pruned {len(removed_files)} file icons and {len(removed_folders)} folder icons")
+            print(
+                f"  pruned {len(removed_files)} file icons, "
+                f"{len(removed_folders)} folder icons and "
+                f"{len(removed_main)} main folder icons"
+            )
 
     # ---- 8. pack.json ---------------------------------------------------- #
     if not args.no_manifest:
@@ -1400,11 +1510,20 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
             "author": read_project_author(),
             "renderer": renderer.name,
             "size": [args.size[0], args.size[1]],
+            "mainFolderIcon": {
+                "name": args.pack_name,
+                "file": f"{MAIN_FOLDER_DIR}/{args.pack_name}.png",
+                "size": [main_size[0], main_size[1]],
+                "source": "icons/"
+                + (main_asset.path.name if main_asset else f"{MAIN_FOLDER_ICON}.svg"),
+                "materialIcon": MAIN_FOLDER_ICON,
+            },
             "counts": {
                 "fileIcons": summarize(file_rows, 0),
                 "filePngs": len(file_rows),
                 "folderIcons": summarize(folder_rows, 0),
                 "folderPngs": len(folder_rows),
+                "mainFolderPngs": 1 if main_target.is_file() else 0,
                 "extensions": len({t for row in file_rows for t in row[2].split(",")}),
             },
             "skipped": {
@@ -1421,8 +1540,9 @@ def main(argv: Optional[Sequence[str]] = None) -> int:
     # ---- 9. 汇总 --------------------------------------------------------- #
     elapsed = time.time() - started
     if not args.quiet:
+        main_note = " + 1 main folder icon" if main_requested else ""
         print(
-            f"done: {len(file_rows)} + {len(folder_rows)} PNGs, "
+            f"done: {len(file_rows)} + {len(folder_rows)} PNGs{main_note}, "
             f"{elapsed:.1f}s, output {out_dir}"
         )
         if missing_total:
@@ -1443,6 +1563,9 @@ def run_check(
     folder_rows: Sequence[Tuple[str, str, str]],
     size: Tuple[int, int],
     quiet: bool,
+    main_target: Optional[Path] = None,
+    main_source: Optional[Path] = None,
+    main_size: Tuple[int, int] = MAIN_FOLDER_SIZE,
 ) -> int:
     """对比磁盘上的映射表与 PNG，报告差异。"""
     problems = 0
@@ -1487,6 +1610,27 @@ def run_check(
             print(f"{label}: {len(wrong_size)} PNGs are not {size[0]}x{size[1]} (e.g. {sample})")
         if not missing and not wrong_size and not quiet:
             print(f"{label}: all PNGs present with the expected size ({len(rows)})")
+
+    if main_target is not None:
+        if main_source is None or not main_source.is_file():
+            problems += 1
+            print(f"main folder icon: source {MAIN_FOLDER_ICON}.svg not found")
+        if not main_target.is_file():
+            problems += 1
+            print(f"main folder icon: {main_target.name} missing ({main_target})")
+        else:
+            current = png_size(main_target)
+            if current != main_size:
+                problems += 1
+                print(
+                    f"main folder icon: {current} but expected "
+                    f"{main_size[0]}x{main_size[1]}"
+                )
+            elif not quiet:
+                print(
+                    f"main folder icon: present with the expected size "
+                    f"({main_size[0]}x{main_size[1]})"
+                )
 
     return 0 if problems == 0 else 1
 

@@ -11,24 +11,30 @@ One Commander 的规则是：**文件图标按「扩展名列表」命名**（`p
 
 ## 内容
 
-| 项目 | 数值 |
-| --- | --- |
-| 上游版本 | `vscode-material-icon-theme` **v5.39.0**（固定在 `upstream.lock.json`） |
-| 文件图标 | **403** 个 PNG，覆盖 **1308** 个扩展名/文件名 token（来自 380 个 Material 图标） |
-| 文件夹图标 | **925** 个 PNG（来自 264 个 Material 文件夹图标） |
-| 尺寸 | 512×512 RGBA，另有 2 张 420×280 `Thumbnail.png` |
-| 构建依赖 | Python 3.10+（纯标准库）与 Inkscape 1.x |
+| 项目    | 数值                                                                 |
+| ----- | ------------------------------------------------------------------ |
+| 上游版本  | `vscode-material-icon-theme` **v5.39.0**（固定在 `upstream.lock.json`） |
+| 文件图标  | **403** 个 PNG，覆盖 **1308** 个扩展名/文件名 token（来自 380 个 Material 图标）     |
+| 文件夹图标 | **925** 个 PNG（来自 264 个 Material 文件夹图标）                             |
+| 默认文件夹图标 | **1** 个 PNG（`MainFolderIcon/MaterialIconTheme.png`，用于 *Default folder icon*） |
+| 尺寸    | 图标包为 512×512 RGBA，默认文件夹图标为 64×64，另有 2 张 420×280 `Thumbnail.png` |
+| 构建依赖  | Python 3.10+（纯标准库）与 Inkscape 1.x                                   |
 
 ## 安装
 
 ### 用 Release 包（推荐）
 
 1. 下载 `MaterialIconTheme-1.0.0.zip` 并解压；
-2. 复制两个目录：
+2. 复制图标包与默认文件夹图标：
    - `FileIcons\MaterialIconTheme` → `<OneCommander>\Resources\FileIcons\`
    - `FolderIcons\MaterialIconTheme` → `<OneCommander>\Resources\FolderIcons\`
-3. 重启 One Commander，打开 **Settings → Theme**，把 *File icons pack* 与
-   *Folder icon pack* 都选成 `MaterialIconTheme`。
+   - `MainFolderIcon\MaterialIconTheme.png` → `<OneCommander>\Resources\MainFolderIcon\`
+     （这是一个单独的 PNG，不是图标包目录；目录不存在就新建）
+3. 重启 One Commander，打开 **Settings → Theme**，把 *File icons pack*、*Folder icon pack*
+   与 *Default folder icon* 都选成 `MaterialIconTheme`。
+
+`MainFolderIcon` 是 One Commander 对「没有匹配到具体文件夹名」的文件夹使用的全局兜底图标；
+它独立于 `FolderIcons\MaterialIconTheme`，在同一个 Settings → Theme 对话框里选择。
 
 `<OneCommander>` 位置：
 
@@ -61,20 +67,23 @@ git clone https://github.com/<your-org>/one-commander-material-icon-pack.git
 cd one-commander-material-icon-pack
 
 make check     # 校验 mappings/ 与 pack/、vendor 上游是否一致（秒级）
-make build     # 重新渲染 1328 个 PNG 到 pack/（需要 Inkscape）
-make verify    # 尺寸、文件名、预览图、映射与文件一致性
+make build     # 重新渲染 1329 个 PNG 到 pack/（需要 Inkscape）
+make verify    # 尺寸、文件名、预览图、默认文件夹图标、映射与文件一致性
 make notices   # 校验许可声明；dist/ 里已有 zip 时连包内声明一起查
 make dist      # 构建 + 校验 + dist/MaterialIconTheme-<version>.zip 与 SHA256SUMS
 ```
 
 `vendor/material-icon-theme/` 里固定了上游的 SVG、两个 TypeScript 定义文件与
-`package.json`，因此构建完全离线；`make vendor` 会按 tag 重新拉取。
+`package.json`，因此构建完全离线；`make vendor` 会按 tag 重新拉取，但会保留
+`icons/folder.svg`——它是上游 npm 构建生成、不在 git tag 里的默认文件夹图标。
 
 没有 Inkscape 时可以直接复用上游 PNG：
 
 ```bash
 python3 scripts/build.py --renderer copy --size 512
 ```
+
+默认文件夹图标只有 SVG，所以 `--renderer copy` 会为这一个文件自动回退到可用的 SVG 渲染器。
 
 ## 命名规则
 
@@ -85,6 +94,9 @@ python3 scripts/build.py --renderer copy --size 512
 - 会与 Windows 设备名冲突的 token（`con`、`nul`、`com1`…）直接跳过。
 - **文件夹图标**：先让「图标名后缀 == 文件夹名」的图标认领（`folder-src` → `src.png`），
   其余别名按定义顺序认领（`folder-vuex-store` → `stores.png`）。
+- **默认文件夹图标**：`MainFolderIcon/MaterialIconTheme.png`，由上游默认的
+  `icons/folder.svg`（Material 蓝灰纯文件夹）按 64×64 渲染；直接放进
+  `Resources\MainFolderIcon\`，文件名就是 *Default folder icon* 下拉框里的名字。
 
 两张映射表是确定性生成的，并且**提交进仓库**，任何改动都能在 diff 里看到。细节见
 [docs/mappings.md](docs/mappings.md) 与 [docs/one-commander.md](docs/one-commander.md)。
@@ -96,7 +108,8 @@ python3 scripts/build.py --renderer copy --size 512
 ├── mappings/                    # 生成并提交的映射表（TSV）
 ├── pack/                        # 生成并提交的图标包（可直接复制）
 │   ├── FileIcons/MaterialIconTheme/
-│   └── FolderIcons/MaterialIconTheme/
+│   ├── FolderIcons/MaterialIconTheme/
+│   └── MainFolderIcon/MaterialIconTheme.png
 ├── LICENSES/                    # 随每个副本一起分发的第三方许可全文
 ├── scripts/                     # build.py、verify.py、package.sh、check-notices.sh、install/uninstall.ps1 …
 ├── vendor/material-icon-theme/  # 固定的上游子集（SVG + TS 定义）

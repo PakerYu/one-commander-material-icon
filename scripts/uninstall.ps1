@@ -3,9 +3,10 @@
     Remove the MaterialIconTheme pack from One Commander.
 
 .DESCRIPTION
-    Deletes Resources\FileIcons\MaterialIconTheme and
-    Resources\FolderIcons\MaterialIconTheme. If a *.bak backup from install.ps1
-    exists it is restored.
+    Deletes Resources\FileIcons\MaterialIconTheme,
+    Resources\FolderIcons\MaterialIconTheme and
+    Resources\MainFolderIcon\MaterialIconTheme.png. If a *.bak backup from
+    install.ps1 exists it is restored.
 
 .PARAMETER Target
     One Commander install directory (default: %LOCALAPPDATA%\OneCommander).
@@ -37,6 +38,17 @@ foreach ($kind in 'FileIcons', 'FolderIcons') {
         Write-Host "restore $backup"
         if (-not $DryRun) { Move-Item -Path $backup -Destination $dest }
     }
+}
+
+$mainDest = Join-Path $Target 'Resources\MainFolderIcon\MaterialIconTheme.png'
+$mainBackup = "$mainDest.bak"
+if (Test-Path $mainDest) {
+    Write-Host "remove $mainDest"
+    if (-not $DryRun) { Remove-Item -Force $mainDest }
+}
+if (Test-Path $mainBackup) {
+    Write-Host "restore $mainBackup"
+    if (-not $DryRun) { Move-Item -Path $mainBackup -Destination $mainDest }
 }
 
 Write-Host 'Restart One Commander and choose another icon pack in Settings -> Theme.'

@@ -4,7 +4,8 @@
 
 .DESCRIPTION
     Copies FileIcons\MaterialIconTheme and FolderIcons\MaterialIconTheme into the
-    One Commander resources directory. Existing packs are moved aside to *.bak.
+    One Commander resources directory, and MainFolderIcon\MaterialIconTheme.png into
+    Resources\MainFolderIcon. Existing packs/files are moved aside to *.bak.
 
 .PARAMETER Target
     One Commander install directory. Defaults to
@@ -31,6 +32,10 @@ $Pack = Join-Path $Repo 'pack'
 if (-not (Test-Path (Join-Path $Pack 'FileIcons\MaterialIconTheme'))) {
     throw "pack not found: run 'make build' first ($Pack)"
 }
+$mainSource = Join-Path $Pack 'MainFolderIcon\MaterialIconTheme.png'
+if (-not (Test-Path $mainSource)) {
+    throw "MainFolderIcon not found: run 'make build' first ($mainSource)"
+}
 if (-not (Test-Path (Join-Path $Target 'Resources'))) {
     throw "not a One Commander directory (Resources\ missing): $Target"
 }
@@ -53,8 +58,23 @@ foreach ($kind in 'FileIcons', 'FolderIcons') {
     Copy-Item -Path $source -Destination $dest -Recurse
 }
 
+$mainDestDir = Join-Path $Target 'Resources\MainFolderIcon'
+$mainDest = Join-Path $mainDestDir 'MaterialIconTheme.png'
+Write-Host "install MainFolderIcon -> $mainDest"
+if (-not $DryRun) {
+    New-Item -ItemType Directory -Force -Path $mainDestDir | Out-Null
+    if (Test-Path $mainDest) {
+        $mainBackup = "$mainDest.bak"
+        if (Test-Path $mainBackup) { Remove-Item -Force $mainBackup }
+        Move-Item -Path $mainDest -Destination $mainBackup
+        Write-Host "  previous file moved to $(Split-Path -Leaf $mainBackup)"
+    }
+    Copy-Item -Path $mainSource -Destination $mainDest
+}
+
 Write-Host ''
 Write-Host 'Restart One Commander, then open Settings -> Theme and pick:'
-Write-Host '  File icons pack:   MaterialIconTheme'
-Write-Host '  Folder icon pack:  MaterialIconTheme'
+Write-Host '  File icons pack:      MaterialIconTheme'
+Write-Host '  Folder icon pack:     MaterialIconTheme'
+Write-Host '  Default folder icon:  MaterialIconTheme'
 if ($DryRun) { Write-Host '(dry run, nothing changed)' }

@@ -8,7 +8,7 @@ comes from and which terms apply; the full legal texts live in [`LICENSES/`](LIC
 | Part | Origin | License |
 | --- | --- | --- |
 | `vendor/material-icon-theme/` — SVGs, the two TypeScript definition files, `package.json` | Material Icon Theme **v5.39.0** | MIT, © Material Extensions |
-| `pack/**` — 403 file-icon PNGs + 925 folder-icon PNGs (512×512) | rendered from the SVGs above | MIT, © Material Extensions — derivative work, see below |
+| `pack/**` — 403 file-icon PNGs + 925 folder-icon PNGs (512×512) + 1 default folder icon (64×64) | rendered from the SVGs above | MIT, © Material Extensions — derivative work, see below |
 | `scripts/`, `mappings/`, `docs/`, `.github/`, this file | this project | MIT, © PakerYu (`LICENSE`) |
 
 ## Upstream project

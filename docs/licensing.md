@@ -5,7 +5,7 @@ Why this repository is **MIT all the way down**, and what that rules out.
 ## The short version
 
 Everything here is MIT: the generator and tooling, the mapping tables, the documentation,
-and the 1328 rendered PNGs. The full upstream notice travels with the code and with every
+and the 1329 rendered PNGs. The full upstream notice travels with the code and with every
 release archive.
 
 ```

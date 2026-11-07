@@ -12,14 +12,15 @@ the Material Icon Theme associations into exactly that layout and renders every 
 
 ## What is inside
 
-| | |
-| --- | --- |
-| Upstream | `vscode-material-icon-theme` **v5.39.0** (pinned in `upstream.lock.json`) |
-| File icons | **403** PNGs covering **1308** extensions / file tokens (380 Material icons) |
-| Folder icons | **925** PNGs for 264 Material folder icons |
-| Size | 512×512 RGBA, plus two 420×280 `Thumbnail.png` previews |
-| Build deps | Python 3.10+ (standard library) and Inkscape 1.x for rendering |
-| Download | ~10 MB zip from the [releases page](../../releases) |
+|              |                                                                              |
+| ------------ | ---------------------------------------------------------------------------- |
+| Upstream     | `vscode-material-icon-theme` **v5.39.0** (pinned in `upstream.lock.json`)    |
+| File icons   | **403** PNGs covering **1308** extensions / file tokens (380 Material icons) |
+| Folder icons | **925** PNGs for 264 Material folder icons                                   |
+| Default folder icon | **1** PNG (`MainFolderIcon/MaterialIconTheme.png`) for *Default folder icon* |
+| Size         | 512×512 RGBA for the packs, 64×64 for the default folder icon, plus two 420×280 `Thumbnail.png` previews |
+| Build deps   | Python 3.10+ (standard library) and Inkscape 1.x for rendering               |
+| Download     | ~10 MB zip from the [releases page](../../releases)                          |
 
 ## Install
 
@@ -27,11 +28,17 @@ the Material Icon Theme associations into exactly that layout and renders every 
 
 1. Download `MaterialIconTheme-1.0.0.zip` from the [releases page](../../releases) and
    extract it.
-2. Copy the two pack folders into One Commander:
+2. Copy the packs and the default folder icon into One Commander:
    - `FileIcons\MaterialIconTheme` → `<OneCommander>\Resources\FileIcons\`
    - `FolderIcons\MaterialIconTheme` → `<OneCommander>\Resources\FolderIcons\`
-3. Restart One Commander, open **Settings → Theme** and select `MaterialIconTheme` for both
-   *File icons pack* and *Folder icon pack*.
+   - `MainFolderIcon\MaterialIconTheme.png` → `<OneCommander>\Resources\MainFolderIcon\`
+     (this is a single PNG, not a pack folder; create the directory if it does not exist)
+3. Restart One Commander, open **Settings → Theme** and select `MaterialIconTheme` for
+   *File icons pack*, *Folder icon pack* and *Default folder icon*.
+
+`MainFolderIcon` is One Commander's global fallback for folders that do not match a name in
+the folder pack; it is independent of `FolderIcons\MaterialIconTheme` and is selected in the
+same Settings → Theme dialog.
 
 Where is `<OneCommander>`?
 
@@ -66,8 +73,8 @@ git clone https://github.com/<your-org>/one-commander-material-icon-pack.git
 cd one-commander-material-icon-pack
 
 make check     # validate mappings/ against pack/ and the vendored upstream (seconds)
-make build     # re-render all 1328 PNGs into pack/ (needs Inkscape)
-make verify    # sizes, file names, thumbnails, mapping ↔ file consistency
+make build     # re-render all 1329 PNGs into pack/ (needs Inkscape)
+make verify    # sizes, file names, thumbnails, default folder icon, mapping consistency
 make notices   # license notices, and the notices inside dist/*.zip when it exists
 make dist      # build + verify + dist/MaterialIconTheme-<version>.zip + SHA256SUMS
 ```
@@ -75,13 +82,17 @@ make dist      # build + verify + dist/MaterialIconTheme-<version>.zip + SHA256S
 `make help` lists every target. The vendored upstream checkout in
 `vendor/material-icon-theme/` (SVGs, the two TypeScript definition files and
 `package.json`) makes the build fully offline; `make vendor` refreshes it from the tag in
-`upstream.lock.json`.
+`upstream.lock.json`. `icons/folder.svg` is upstream's generated default folder icon and is
+not in the git tag, so `make vendor` preserves the copy in `vendor/` instead of deleting it.
 
 Without Inkscape you can reuse the PNGs that ship with the upstream project:
 
 ```bash
 python3 scripts/build.py --renderer copy --size 512
 ```
+
+The default folder icon is always an SVG, so `--renderer copy` falls back to an available
+SVG renderer for that one file.
 
 ## How the naming works
 
@@ -100,6 +111,14 @@ python3 scripts/build.py --renderer copy --size 512
 - `folder-src` → `src.png`: the icon that matches its own folder name wins first.
 - Remaining aliases are claimed in definition order (`folder-vuex-store` → `stores.png`).
 
+### Default folder icon
+
+`MainFolderIcon/MaterialIconTheme.png` is rendered at 64×64 from the upstream default
+`icons/folder.svg` (the plain blue-grey Material folder). One Commander reads it directly
+from `Resources\MainFolderIcon\`; the file name is the label shown in
+**Settings → Theme → Default folder icon**. It is not a mapping row and not part of the
+folder pack.
+
 Both tables are generated deterministically; `mappings/file-icons.tsv` and
 `mappings/folder-icons.tsv` are committed so every change is reviewable in a diff. See
 [docs/mappings.md](docs/mappings.md) and [docs/one-commander.md](docs/one-commander.md).
@@ -111,7 +130,8 @@ Both tables are generated deterministically; `mappings/file-icons.tsv` and
 ├── mappings/                 # generated, committed mapping tables (TSV)
 ├── pack/                     # generated icon packs (committed, copy-ready)
 │   ├── FileIcons/MaterialIconTheme/
-│   └── FolderIcons/MaterialIconTheme/
+│   ├── FolderIcons/MaterialIconTheme/
+│   └── MainFolderIcon/MaterialIconTheme.png
 ├── LICENSES/                 # third-party license texts shipped with every copy
 ├── scripts/                  # build.py, verify.py, package.sh, check-notices.sh, install/uninstall.ps1, …
 ├── vendor/material-icon-theme/  # pinned upstream subset (SVGs + TS definitions)

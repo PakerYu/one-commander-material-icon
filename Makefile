@@ -7,6 +7,7 @@ UPSTREAM_VERSION := $(shell $(PY) -c "import json;print(json.load(open('upstream
 
 PACK := pack
 SIZE := 512
+MAIN_FOLDER_SIZE := 64
 ZIP := dist/MaterialIconTheme-$(VERSION).zip
 UPSTREAM_LICENSE := LICENSES/material-icon-theme-MIT.txt
 
@@ -21,13 +22,13 @@ help: ## Show this help
 	@echo "  license:  MIT (see LICENSE, ATTRIBUTION.md, LICENSES/)"
 
 build: ## Render the pack into pack/ (needs Inkscape, or --renderer copy)
-	$(PY) scripts/build.py --size $(SIZE)
+	$(PY) scripts/build.py --size $(SIZE) --main-folder-size $(MAIN_FOLDER_SIZE)
 
 check: ## Validate mappings/ against pack/ and the vendored upstream (fast, no rendering)
-	$(PY) scripts/build.py --check --size $(SIZE)
+	$(PY) scripts/build.py --check --size $(SIZE) --main-folder-size $(MAIN_FOLDER_SIZE)
 
-verify: ## Validate the built pack (sizes, names, thumbnails, mappings)
-	$(PY) scripts/verify.py --size $(SIZE)
+verify: ## Validate the built pack (sizes, names, thumbnails, MainFolderIcon, mappings)
+	$(PY) scripts/verify.py --size $(SIZE) --main-size $(MAIN_FOLDER_SIZE)
 
 notices: ## Check license notices, and the notices inside $(ZIP) when it exists
 	./scripts/check-notices.sh $(if $(wildcard $(ZIP)),--zip $(ZIP),)
