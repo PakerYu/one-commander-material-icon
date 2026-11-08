@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [master]
   pull_request:
   workflow_dispatch:
 
@@ -51,7 +51,9 @@ jobs:
           set -euo pipefail
           zip_file=$(ls dist/*.zip)
           unzip -Z1 "$zip_file" > "$RUNNER_TEMP/entries.txt"
-          for required in LICENSE ATTRIBUTION.md LICENSES/material-icon-theme-MIT.txt pack.json; do
+          # pack.json is the build manifest written by `make build`/`make dist`; this
+          # job runs `make package`, which zips the committed pack/ without a manifest.
+          for required in LICENSE ATTRIBUTION.md LICENSES/material-icon-theme-MIT.txt; do
             if ! grep -qxF "$required" "$RUNNER_TEMP/entries.txt"; then
               echo "$zip_file does not ship $required" >&2
               exit 1

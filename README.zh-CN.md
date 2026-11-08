@@ -24,7 +24,9 @@ One Commander 的规则是：**文件图标按「扩展名列表」命名**（`p
 
 ### 用 Release 包（推荐）
 
-1. 下载 `MaterialIconTheme-1.0.0.zip` 并解压；
+1. 下载 `MaterialIconTheme-<version>.zip` 并解压（`<version>` 是去掉前导 `v` 的 release
+   tag，例如 `MaterialIconTheme-1.1.0.zip`）。Release 页面只提供该压缩包与 `SHA256SUMS`，
+   授权声明文件都在压缩包内；
 2. 复制图标包与默认文件夹图标：
    - `FileIcons\MaterialIconTheme` → `<OneCommander>\Resources\FileIcons\`
    - `FolderIcons\MaterialIconTheme` → `<OneCommander>\Resources\FolderIcons\`

@@ -69,14 +69,20 @@ the renderer changes. `make check` only compares names, sizes and mapping rows.
 
 ## Releasing the pack
 
-1. Bump `VERSION` and add a `CHANGELOG.md` entry.
+1. Bump `VERSION` and add a `CHANGELOG.md` entry. `VERSION` must equal the tag you are
+   about to push without its leading `v`; the release workflow refuses to build otherwise.
 2. `make dist` — renders, validates, zips `dist/MaterialIconTheme-<version>.zip` and writes
    `dist/SHA256SUMS`; the archive is only accepted if `scripts/check-notices.sh --zip …`
    finds the license notices inside it.
 3. Tag `v<version>` and push the tag. `.github/workflows/release.yml` rebuilds, re-checks the
-   archive, and attaches the zip, `SHA256SUMS`, `pack.json`, `LICENSE`, `ATTRIBUTION.md` and
-   `LICENSES/material-icon-theme-MIT.txt` to the release.
-4. `.github/workflows/upstream-watch.yml` opens a weekly issue when a newer upstream release
+   archive, and publishes exactly two assets: `MaterialIconTheme-<version>.zip` and
+   `SHA256SUMS`. The notices (`LICENSE`, `ATTRIBUTION.md`,
+   `LICENSES/material-icon-theme-MIT.txt`) and `pack.json` stay inside the archive instead of
+   being uploaded again.
+4. Pushed the tag against the wrong commit? Delete the release in the GitHub UI (or
+   `gh release delete <tag> --yes`), delete the tag on both remotes with
+   `git push <remote> :refs/tags/<tag>`, then re-tag the fixed commit and push it again.
+5. `.github/workflows/upstream-watch.yml` opens a weekly issue when a newer upstream release
    exists, so the pin does not silently rot.
 
 `scripts/publish.sh` is only for bootstrapping a fresh remote; it does not publish a release.

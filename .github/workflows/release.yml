@@ -4,7 +4,6 @@ on:
   push:
     tags:
       - "v*"
-  workflow_dispatch:
 
 permissions:
   contents: write
@@ -24,45 +23,85 @@ jobs:
         with:
           python-version: "3.12"
 
+      # The tag is the version of the release. Fail before installing or rendering
+      # anything when the tag and VERSION disagree: a published asset may never carry
+      # a version that differs from the tag it is attached to.
+      - name: Derive the version from the tag and check VERSION
+        id: meta
+        run: |
+          set -euo pipefail
+          tag="${GITHUB_REF_NAME}"
+          if [[ ! "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "::error::release tags must be vMAJOR.MINOR.PATCH, got '$tag'"
+            exit 1
+          fi
+          version="${tag#v}"
+          file_version="$(tr -d '[:space:]' < VERSION)"
+          if [ "$version" != "$file_version" ]; then
+            echo "::error::tag $tag does not match VERSION ($file_version); bump VERSION and CHANGELOG.md, then move the tag"
+            exit 1
+          fi
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          echo "upstream=$(python3 -c "import json;print(json.load(open('upstream.lock.json'))['version'])")" >> "$GITHUB_OUTPUT"
+
       - name: Install renderer and zip
         run: |
           sudo apt-get update -qq
-          sudo apt-get install -y -qq inkscape imagemagick zip
+          sudo apt-get install -y -qq inkscape imagemagick zip unzip
 
       - name: Check the license notices
         run: make notices
 
-      - name: Build
-        run: make build
-
-      - name: Verify
-        run: make verify
-
-      - name: Package
+      # `make dist` is `build verify` plus packaging, so it covers everything the
+      # previous separate build/verify/package steps did, once.
+      - name: Build, verify and package
         run: make dist
 
-      - name: Verify the release assets
+      - name: Verify the release archive
+        env:
+          VERSION: ${{ steps.meta.outputs.version }}
         run: |
           set -euo pipefail
-          ./scripts/check-notices.sh --zip dist/*.zip
-          cd dist && sha256sum -c SHA256SUMS
+          zip="dist/MaterialIconTheme-$VERSION.zip"
+          if [ ! -f "$zip" ]; then
+            echo "::error::$zip was not produced"
+            exit 1
+          fi
+          if [ "$(find dist -maxdepth 1 -name '*.zip' | wc -l)" -ne 1 ]; then
+            echo "::error::dist/ holds zips other than $zip"
+            exit 1
+          fi
+          # what matters is the file a user downloads, not what was staged
+          ./scripts/check-notices.sh --zip "$zip"
+          ( cd dist && sha256sum -c SHA256SUMS )
+          unzip -Z1 "$zip" | grep -qxF pack.json
 
-      - name: Read version
-        id: meta
-        run: |
-          echo "version=$(cat VERSION)" >> "$GITHUB_OUTPUT"
-          echo "upstream=$(python3 -c "import json;print(json.load(open('upstream.lock.json'))['version'])")" >> "$GITHUB_OUTPUT"
-
+      # Only the archive and its checksum are published: the notices and the build
+      # manifest already travel inside the zip, so uploading them again only clutters
+      # the release page (and flattens LICENSES/ to a bare file name).
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ github.ref_name }}
           name: MaterialIconTheme ${{ steps.meta.outputs.version }} (upstream ${{ steps.meta.outputs.upstream }})
-          generate_release_notes: true
+          generate_release_notes: false
+          body: |
+            Material icon pack for One Commander, built from material-icon-theme ${{ steps.meta.outputs.upstream }}.
+
+            ### Downloads
+
+            - `MaterialIconTheme-${{ steps.meta.outputs.version }}.zip` — the complete pack.
+              `LICENSE`, `ATTRIBUTION.md`, `LICENSES/material-icon-theme-MIT.txt` and
+              `pack.json` are inside the archive.
+            - `SHA256SUMS` — verify with `sha256sum -c SHA256SUMS`.
+
+            ### Install
+
+            Copy `FileIcons\MaterialIconTheme`, `FolderIcons\MaterialIconTheme` and
+            `MainFolderIcon\MaterialIconTheme.png` into One Commander's `Resources\` folder,
+            then pick `MaterialIconTheme` under **Settings → Theme**. Full instructions:
+            https://github.com/${{ github.repository }}#install
           files: |
-            dist/MaterialIconTheme-*.zip
+            dist/MaterialIconTheme-${{ steps.meta.outputs.version }}.zip
             dist/SHA256SUMS
-            dist/pack.json
-            LICENSE
-            ATTRIBUTION.md
-            LICENSES/material-icon-theme-MIT.txt
           fail_on_unmatched_files: true

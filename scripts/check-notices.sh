@@ -2,7 +2,7 @@
 # Verify the legal notices that have to travel with this pack.
 #
 #   ./scripts/check-notices.sh
-#   ./scripts/check-notices.sh --zip dist/MaterialIconTheme-1.0.0.zip
+#   ./scripts/check-notices.sh --zip dist/MaterialIconTheme-<version>.zip
 #
 # Checks
 # ------

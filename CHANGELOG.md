@@ -9,6 +9,8 @@ The upstream icon set is tracked separately: the version in parentheses is the p
 
 ## [Unreleased]
 
+## [1.1.0] - 2026-11-07 (upstream 5.39.0)
+
 ### Added
 
 - `MainFolderIcon/MaterialIconTheme.png`: a 64×64 default folder icon rendered from the
@@ -37,11 +39,26 @@ The upstream icon set is tracked separately: the version in parentheses is the p
 - CI grew two jobs: `notices` (notices + zip the committed pack + assert the archive ships
   the notices and matching checksums, artifact upload) and `scripts` (byte-compile, `bash -n`,
   ShellCheck). The release workflow verifies the notices inside the published zip and
-  attaches `SHA256SUMS`, `LICENSE`, `ATTRIBUTION.md` and the upstream license text.
+  publishes only `MaterialIconTheme-<version>.zip` and `SHA256SUMS`; the notices stay inside
+  the archive.
 - `Makefile`: new `notices`, `licenses` and `package` targets; `dist` now runs the notice
   checks before zipping.
 
-## [1.0.0] - 2025-10-29 (upstream 5.39.0)
+### Fixed
+
+- Release assets are named after the tag: the workflow derives the version from
+  `GITHUB_REF_NAME` and refuses to build when the tag disagrees with `VERSION`, so a
+  `v1.1.0` push can no longer publish a `MaterialIconTheme-1.0.0.zip`. The release title,
+  the archive name and the tag always carry the same version.
+- The release page only carries the archive and its checksum. `LICENSE`, `ATTRIBUTION.md`,
+  `LICENSES/material-icon-theme-MIT.txt` and `pack.json` are no longer uploaded a second
+  time next to the zip (they already travel inside it), which also stops the upload from
+  flattening `LICENSES/material-icon-theme-MIT.txt` to a bare file name.
+- CI runs on `master` (the default branch) again, and the packaging assertion no longer
+  requires `pack.json` in archives built by `make package`, which deliberately ships the
+  committed `pack/` without a build manifest.
+
+## [1.0.0] - 2026-10-31 (upstream 5.39.0)
 
 ### Added
 

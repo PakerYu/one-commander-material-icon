@@ -26,8 +26,10 @@ the Material Icon Theme associations into exactly that layout and renders every 
 
 ### From a release (recommended)
 
-1. Download `MaterialIconTheme-1.0.0.zip` from the [releases page](../../releases) and
-   extract it.
+1. Download `MaterialIconTheme-<version>.zip` from the [releases page](../../releases) and
+   extract it. `<version>` is the release tag without its leading `v`, for example
+   `MaterialIconTheme-1.1.0.zip`. The release page carries that archive and `SHA256SUMS`;
+   the license notices are inside the archive.
 2. Copy the packs and the default folder icon into One Commander:
    - `FileIcons\MaterialIconTheme` → `<OneCommander>\Resources\FileIcons\`
    - `FolderIcons\MaterialIconTheme` → `<OneCommander>\Resources\FolderIcons\`
